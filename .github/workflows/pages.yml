@@ -19,6 +19,50 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Add background music
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          if 'id="birthdayMusicFrame"' not in s:
+              music_html = '''
+          <button class="music" id="musicToggle" type="button" aria-label="Toggle birthday music">♫ <span>Say Yes to Heaven</span> <small>· tap to pause</small></button>
+          <iframe class="yt" id="birthdayMusicFrame" title="Birthday music" src="https://www.youtube.com/embed/6ksOgOnX8q4?autoplay=1&mute=1&controls=0&loop=1&playlist=6ksOgOnX8q4&playsinline=1&enablejsapi=1&origin=https%3A%2F%2Fsassysenoritaishere-prog.github.io" allow="autoplay; encrypted-media" frameborder="0"></iframe>
+          '''
+              script = '''
+          <script>
+          (() => {
+            const frame = document.getElementById('birthdayMusicFrame');
+            const toggle = document.getElementById('musicToggle');
+            let playing = false;
+            let started = false;
+            const yt = (func, args=[]) => {
+              if (frame && frame.contentWindow) frame.contentWindow.postMessage(JSON.stringify({event:'command',func,args}), '*');
+            };
+            const startMusic = () => {
+              started = true;
+              yt('playVideo');
+              yt('unMute');
+              yt('setVolume',[42]);
+              playing = true;
+              if (toggle) toggle.innerHTML = '♫ <span>Say Yes to Heaven</span> <small>· playing</small>';
+            };
+            const pauseMusic = () => {
+              yt('pauseVideo');
+              playing = false;
+              if (toggle) toggle.innerHTML = '♫ <span>Say Yes to Heaven</span> <small>· tap to play</small>';
+            };
+            document.addEventListener('pointerdown', () => { if (!started) startMusic(); });
+            if (toggle) toggle.addEventListener('click', (e) => { e.stopPropagation(); if (playing) pauseMusic(); else startMusic(); });
+          })();
+          </script>
+          '''
+              s = s.replace('<body>', '<body>\n' + music_html, 1)
+              s = s.replace('</body>', script + '\n</body>', 1)
+              p.write_text(s, encoding='utf-8')
+          PY
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
